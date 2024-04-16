@@ -9,14 +9,14 @@ import (
 type Response struct {
 	statusCode int
 	headers    map[string]string
-	body       string
+	body       []byte
 }
 
 func NewResponse() *Response {
 	return &Response{
 		statusCode: 404,
 		headers:    make(map[string]string, 8),
-		body:       "",
+		body:       []byte{},
 	}
 }
 
@@ -26,10 +26,8 @@ func (r *Response) ToBytes() []byte {
 		fmt.Sprintf("%s %d %s%s", httpVersion, r.statusCode, httpStatusCodes[r.statusCode], endOfLine),
 	)
 
-	body := []byte(r.body)
-	if r.body != "" {
-		r.headers["Content-Type"] = "text/plain"
-		r.headers["Content-Length"] = strconv.Itoa(len(body))
+	if len(r.body) > 0 {
+		r.headers["Content-Length"] = strconv.Itoa(len(r.body))
 	}
 
 	for key, val := range r.headers {
@@ -37,8 +35,8 @@ func (r *Response) ToBytes() []byte {
 	}
 	sb.WriteString(endOfLine)
 
-	if r.body != "" {
-		sb.WriteString(r.body)
+	if len(r.body) > 0 {
+		sb.Write(r.body)
 	}
 
 	return []byte(sb.String())
