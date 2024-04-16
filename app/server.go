@@ -59,15 +59,13 @@ func main() {
 	}
 	defer l.Close()
 
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
 
-	err = handle(conn)
-	if err != nil {
-		fmt.Println("Error while handling connection: ", err.Error())
-		os.Exit(1)
+		go handle(conn)
 	}
 }
