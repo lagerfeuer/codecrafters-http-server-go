@@ -13,6 +13,7 @@ var (
 
 	httpStatusCodes = map[int]string{
 		200: "OK",
+		201: "Created",
 		404: "Not Found",
 	}
 )
@@ -23,6 +24,55 @@ func readFile(path string) ([]byte, error) {
 		return []byte{}, err
 	}
 	return content, nil
+}
+
+func writeFile(path string, data []byte) error {
+	return os.WriteFile(path, data, 0666)
+}
+
+func handleGet(request Request, path string) Response {
+	response := NewResponse()
+
+	if request.uri == "/" {
+		response.statusCode = 200
+	} else if strings.HasPrefix(request.uri, "/echo/") {
+		response.statusCode = 200
+		response.headers["Content-Type"] = "text/plain"
+		response.body = []byte(request.uri[len("/echo/"):])
+	} else if request.uri == "/user-agent" {
+		response.statusCode = 200
+		response.headers["Content-Type"] = "text/plain"
+		response.body = []byte(request.headers["User-Agent"])
+	} else if strings.HasPrefix(request.uri, "/files/") {
+		filename := request.uri[len("/files/"):]
+		content, err := readFile(path + "/" + filename)
+		if err != nil {
+			response.statusCode = 404
+		} else {
+			response.statusCode = 200
+			response.headers["Content-Type"] = "application/octet-stream"
+			response.body = content
+		}
+	}
+
+	return response
+}
+
+func handlePost(request Request, path string) Response {
+	response := NewResponse()
+
+	if strings.HasPrefix(request.uri, "/files/") {
+		filename := request.uri[len("/files/"):]
+		err := writeFile(path+"/"+filename, request.body)
+		if err != nil {
+			response.statusCode = 500
+			response.body = []byte(err.Error())
+		} else {
+			response.statusCode = 201
+		}
+	}
+
+	return response
 }
 
 func handle(conn net.Conn, path string) error {
@@ -36,31 +86,11 @@ func handle(conn net.Conn, path string) error {
 	}
 
 	request := ParseRequest(buffer)
-	response := NewResponse()
-
-	if request.uri == "/" {
-		response.statusCode = 200
-	}
-	if strings.HasPrefix(request.uri, "/echo/") {
-		response.statusCode = 200
-		response.headers["Content-Type"] = "text/plain"
-		response.body = []byte(request.uri[len("/echo/"):])
-	}
-	if request.uri == "/user-agent" {
-		response.statusCode = 200
-		response.headers["Content-Type"] = "text/plain"
-		response.body = []byte(request.headers["User-Agent"])
-	}
-	if strings.HasPrefix(request.uri, "/files/") {
-		filename := request.uri[len("/files/"):]
-		content, err := readFile(path + "/" + filename)
-		if err != nil {
-			response.statusCode = 404
-		} else {
-			response.statusCode = 200
-			response.headers["Content-Type"] = "application/octet-stream"
-			response.body = content
-		}
+	response := Response{}
+	if request.method == "GET" {
+		response = handleGet(request, path)
+	} else if request.method == "POST" {
+		response = handlePost(request, path)
 	}
 
 	_, err = conn.Write(response.ToBytes())

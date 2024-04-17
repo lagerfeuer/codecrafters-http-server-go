@@ -12,15 +12,15 @@ type Response struct {
 	body       []byte
 }
 
-func NewResponse() *Response {
-	return &Response{
+func NewResponse() Response {
+	return Response{
 		statusCode: 404,
 		headers:    make(map[string]string, 8),
 		body:       []byte{},
 	}
 }
 
-func (r *Response) ToBytes() []byte {
+func (r Response) ToBytes() []byte {
 	var sb strings.Builder
 	sb.WriteString(
 		fmt.Sprintf("%s %d %s%s", httpVersion, r.statusCode, httpStatusCodes[r.statusCode], endOfLine),

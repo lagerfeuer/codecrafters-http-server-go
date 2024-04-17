@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -9,30 +12,40 @@ type Request struct {
 	uri     string
 	version string
 	headers map[string]string
+	body    []byte
 }
 
-func ParseRequest(raw []byte) *Request {
+func ParseRequest(raw []byte) Request {
 	content := string(raw)
-	lines := strings.Split(content, endOfLine)
-	startLine := strings.Split(lines[0], " ")
+	parts := strings.Split(content, endOfLine+endOfLine)
+	rawHeaders := strings.Split(parts[0], endOfLine)
+	startLine := strings.Split(rawHeaders[0], " ")
 
 	headers := make(map[string]string, 8)
+	rawBody := parts[1]
 
-	for _, line := range lines[1:] {
-		if !strings.Contains(line, ":") {
-			break
-		}
-
+	for _, line := range rawHeaders[1:] {
 		splits := strings.SplitN(line, ":", 2)
 		key := splits[0]
 		val := strings.Trim(splits[1], " \r\n")
 		headers[key] = val
 	}
 
-	return &Request{
+	body := []byte{}
+	if headers["Content-Length"] != "" {
+		length, err := strconv.Atoi(headers["Content-Length"])
+		if err != nil {
+			fmt.Println("Error converting 'Content-Length': ", err.Error())
+			os.Exit(1)
+		}
+		body = []byte(rawBody)[:length]
+	}
+
+	return Request{
 		method:  startLine[0],
 		uri:     startLine[1],
 		version: startLine[2],
 		headers: headers,
+		body:    body,
 	}
 }
